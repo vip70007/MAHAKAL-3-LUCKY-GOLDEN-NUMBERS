@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mahakal Lucky Numbers Scratch</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(#1e1e1e, #111);
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 350px;
+      margin: auto;
+      background: #222;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 15px gold;
+    }
+    .heading {
+      font-size: 24px;
+      margin-bottom: 15px;
+      color: gold;
+    }
+    #mobileInput {
+      padding: 10px;
+      width: 100%;
+      font-size: 16px;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      border: none;
+    }
+    #scratchArea {
+      position: relative;
+      width: 100%;
+      height: 150px;
+      background: #ccc;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 15px 0;
+    }
+    #bonusText {
+      font-size: 26px;
+      color: darkred;
+      font-weight: bold;
+      position: absolute;
+      width: 100%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1;
+      letter-spacing: 10px;
+      text-shadow: 0 0 10px #660000, 0 0 20px #990000, 0 0 30px #ff0000;
+      animation: glow 1.5s infinite alternate;
+    }
+    @keyframes glow {
+      from { text-shadow: 0 0 10px #660000, 0 0 20px #990000, 0 0 30px #ff0000; }
+      to { text-shadow: 0 0 20px #ff0000, 0 0 30px #990000, 0 0 40px #660000; }
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2;
+    }
+    button {
+      padding: 10px 20px;
+      background: gold;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="heading">✨ MAHAKAL LUCKY NUMBERS ✨</div>
+    <input type="tel" id="mobileInput" placeholder="Enter your mobile number" maxlength="10">
+    <button onclick="checkMobile()">SUBMIT</button>
+
+    <div id="scratchContainer" style="display:none">
+      <div id="scratchArea">
+        <div id="bonusText"></div>
+        <canvas id="scratchCanvas"></canvas>
+      </div>
+      <button id="shareBtn" style="display:none" onclick="shareOnWhatsApp()">📲 Share on WhatsApp</button>
+    </div>
+  </div>
+
+  <audio id="revealSound" src="https://www.fesliyanstudios.com/play-mp3/387" preload="auto"></audio>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+  <script>
+    const bonusText = document.getElementById("bonusText");
+    const sound = document.getElementById("revealSound");
+    const shareBtn = document.getElementById("shareBtn");
+    let revealed = false;
+    let claimedNumbers = JSON.parse(localStorage.getItem("claimedNumbers") || '{}');
+
+    function generateLuckyNumbers() {
+      let nums = [];
+      while (nums.length < 3) {
+        let n = Math.floor(Math.random() * 10);
+        if (!nums.includes(n)) nums.push(n);
+      }
+      return nums.join("  ");
+    }
+
+    function checkMobile() {
+      const mobile = document.getElementById("mobileInput").value.trim();
+      if (!/^\d{10}$/.test(mobile)) {
+        alert("Please enter a valid 10-digit mobile number");
+        return;
+      }
+      const now = Date.now();
+      const lastClaim = claimedNumbers[mobile]?.timestamp || 0;
+      const hours24 = 24 * 60 * 60 * 1000;
+      if (now - lastClaim < hours24) {
+        const hoursLeft = Math.ceil((hours24 - (now - lastClaim)) / (60 * 60 * 1000));
+        alert(`You have already revealed your lucky numbers! Try again in ${hoursLeft} hour(s).`);
+        return;
+      }
+      document.getElementById("scratchContainer").style.display = "block";
+      setupScratch(mobile);
+    }
+
+    function setupScratch(mobile) {
+      const canvas = document.getElementById("scratchCanvas");
+      const ctx = canvas.getContext("2d");
+      bonusText.innerHTML = `🎯 ${generateLuckyNumbers()}`;
+
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+
+      ctx.fillStyle = "#aaa";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let isDrawing = false;
+
+      canvas.addEventListener("mousedown", e => {isDrawing = true; draw(e);});
+      canvas.addEventListener("mousemove", draw);
+      canvas.addEventListener("mouseup", () => {isDrawing = false; checkReveal(mobile);});
+      canvas.addEventListener("touchstart", e => {isDrawing = true; draw(e);});
+      canvas.addEventListener("touchmove", draw);
+      canvas.addEventListener("touchend", () => {isDrawing = false; checkReveal(mobile);});
+
+      function getXY(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+        return { x, y };
+      }
+
+      function draw(e) {
+        if (!isDrawing || revealed) return;
+        e.preventDefault();
+        const { x, y } = getXY(e);
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.beginPath();
+        ctx.arc(x, y, 15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function checkReveal(mobile) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let clearPixels = 0;
+        for (let i = 0; i < imageData.data.length; i += 4) {
+          if (imageData.data[i + 3] === 0) clearPixels++;
+        }
+        const percent = (clearPixels / (canvas.width * canvas.height)) * 100;
+        if (percent > 30 && !revealed) {
+          revealed = true;
+          sound.play();
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+          claimedNumbers[mobile] = { numbers: bonusText.innerText, timestamp: Date.now() };
+          localStorage.setItem("claimedNumbers", JSON.stringify(claimedNumbers));
+          shareBtn.style.display = "inline-block";
+        }
+      }
+    }
+
+    function shareOnWhatsApp() {
+      const text = `My Mahakal Lucky Numbers are: ${bonusText.innerText} 🔱 Check yours here: [YOUR_LINK_HERE]`;
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    }
+  </script>
+</body>
+</html>
